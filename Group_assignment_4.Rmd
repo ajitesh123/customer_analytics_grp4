@@ -1,0 +1,224 @@
+---
+title: "Group Assignment 4 - Creative Gaming"
+author:
+- Section 51
+- Gaurav Agrawal, Ajitesh Abhishek, Tarun Joshi
+output:
+  pdf_document: default
+  html_notebook: default
+  html_document:
+    df_print: paged
+---
+
+```{r, include=FALSE}
+### Determine notebook defaults:
+knitr::opts_chunk$set(echo=TRUE,      # Print all the code in all the chunks
+                      warning=FALSE,  # Don't print warning statements
+                      message=FALSE,  # Don't print other R output messages
+                      comment=NA)     # Helps produce prettier output
+```
+
+```{r pkginit, echo=FALSE, message=FALSE}
+# Install packages needed for class
+options(install.packages.check.source = "no")
+pkgs = c('rmarkdown', 'gmodels', 'modelr', 'janitor', 'haven', 'readxl', 'knitr', 'psych', 'statar', 'tidyverse', 'devtools', 'lfe', 'Matrix')
+pkgs.installed = installed.packages()[, 'Package']
+needtoinstall = setdiff(pkgs, pkgs.installed)
+if (length(needtoinstall) > 0)
+    install.packages(needtoinstall)
+devtools::install_github("fzettelmeyer/mktg482", upgrade = "never", force = TRUE)
+
+```
+
+```{r, echo=FALSE, message = FALSE, warning = FALSE}
+### Load packages:
+library(gmodels)
+library(modelr)
+library(janitor)
+library(haven)
+library(readxl)
+library(knitr)
+library(psych)
+library(statar)
+library(tidyverse)
+library(mktg482)
+library(sjPlot)
+library(skimr) 
+library(nnet)
+library(tictoc)
+library(effects)
+library(splitstackshape)
+library(tools4uplift)
+library(ranger)
+```
+
+### Read in the data:
+```{r}
+# use load("filename.Rdata") for .Rdata files
+data = load("PentathlonTargeting.Rdata")
+```
+
+##Question 1: Step 1
+```{r}
+data.nptb.train <- pent %>%
+filter(training==1)
+```
+
+```{r}
+data.nptb.test <- pent %>%
+filter(training==0)
+```
+
+
+```{r}
+logit.endurance <- glm(buyer ~ age + female + income + children + freq_endurance + freq_strength + freq_water + freq_team + freq_backcountry + freq_racquet, family=binomial(logit), data = data.nptb.train %>% filter(message=="endurance")  )
+
+data.nptb.test <- data.nptb.test %>%
+mutate(pr.endurance = predict(logit.endurance, newdata = data.nptb.test, type = "response"))
+```
+
+```{r}
+logit.strength <- glm(buyer ~ age + female + income + children + freq_endurance + freq_strength + freq_water + freq_team + freq_backcountry + freq_racquet, family=binomial(logit), data = data.nptb.train %>% filter(message=="strength")  )
+
+data.nptb.test <- data.nptb.test %>%
+mutate(pr.strength = predict(logit.strength, newdata = data.nptb.test, type = "response"))
+```
+
+```{r}
+logit.water <- glm(buyer ~ age + female + income + children + freq_endurance + freq_strength + freq_water + freq_team + freq_backcountry + freq_racquet, family=binomial(logit), data = data.nptb.train %>% filter(message=="water")  )
+
+data.nptb.test <- data.nptb.test %>%
+mutate(pr.water = predict(logit.water, newdata = data.nptb.test, type = "response"))
+```
+
+```{r}
+logit.team <- glm(buyer ~ age + female + income + children + freq_endurance + freq_strength + freq_water + freq_team + freq_backcountry + freq_racquet, family=binomial(logit), data = data.nptb.train %>% filter(message=="team")  )
+
+data.nptb.test <- data.nptb.test %>%
+mutate(pr.team = predict(logit.team, newdata = data.nptb.test, type = "response"))
+```
+
+```{r}
+logit.backcountry <- glm(buyer ~ age + female + income + children + freq_endurance + freq_strength + freq_water + freq_team + freq_backcountry + freq_racquet, family=binomial(logit), data = data.nptb.train %>% filter(message=="backcountry")  )
+
+data.nptb.test <- data.nptb.test %>%
+mutate(pr.backcountry = predict(logit.backcountry, newdata = data.nptb.test, type = "response"))
+```
+
+```{r}
+logit.racquet <- glm(buyer ~ age + female + income + children + freq_endurance + freq_strength + freq_water + freq_team + freq_backcountry + freq_racquet, family=binomial(logit), data = data.nptb.train %>% filter(message=="racquet")  )
+
+data.nptb.test <- data.nptb.test %>%
+mutate(pr.racquet = predict(logit.racquet, newdata = data.nptb.test, type = "response"))
+```
+
+```{r}
+logit.control <- glm(buyer ~ age + female + income + children + freq_endurance + freq_strength + freq_water + freq_team + freq_backcountry + freq_racquet, family=binomial(logit), data = data.nptb.train %>% filter(message=="control")  )
+
+data.nptb.test <- data.nptb.test %>%
+mutate(pr.control = predict(logit.control, newdata = data.nptb.test, type = "response"))
+```
+
+
+```{r}
+data.nptb.test <- data.nptb.test %>%
+mutate(pr.max = pmax(pr.endurance, pr.team, pr.water, pr.strength, pr.racquet, pr.backcountry, pr.control),
+mail.offer = case_when(
+pr.endurance == pr.max ~ "endurance",
+pr.team == pr.max ~ "team",
+pr.water== pr.max ~ "water",
+pr.strength== pr.max ~ "strength", 
+pr.racquet== pr.max ~ "racquet",
+pr.backcountry== pr.max ~ "backcountry",
+pr.control== pr.max ~ "control"))
+
+```
+
+## Question 1: Step 2
+```{r}
+data.nptb.test %>%
+tabyl(mail.offer)
+```
+
+## Question 1: Step 3
+```{r}
+avg_order_db <- data.nptb.train %>% filter(buyer==1)%>%
+  group_by(message)%>%
+  summarise(mean(total_os))
+avg_order_db
+```
+
+
+
+```{r}
+data.nptb.test <- data.nptb.test %>%
+mutate(epr.backcountry = pr.backcountry *64.03409*0.40, epr.control = pr.control*49.90060*0.40, epr.endurance = pr.endurance*55.58489*0.40, epr.racquet=pr.racquet*56.40562*0.40, epr.strength = pr.strength*56.70875*0.40, epr.team = pr.team*56.52245*0.40, epr.water = pr.water*61.95734*0.40)
+head(data.nptb.test)
+```
+
+```{r}
+data.nptb.test <- data.nptb.test %>%
+mutate(epr.max = pmax(epr.endurance, epr.team, epr.water, epr.strength, epr.racquet, epr.backcountry, epr.control),
+mail.offer.ep = case_when(
+epr.endurance == epr.max ~ "endurance",
+epr.team == epr.max ~ "team",
+epr.water== epr.max ~ "water",
+epr.strength== epr.max ~ "strength", 
+epr.racquet== epr.max ~ "racquet",
+epr.backcountry== epr.max ~ "backcountry",
+epr.control== epr.max ~ "control"))
+```
+The epr.max column showcases the action that we would take for the customer. 
+
+## Question 1: Step 4
+```{r}
+data.nptb.test %>%
+tabyl(mail.offer.ep)
+```
+Based on profit, we should message in above propotion. 
+
+## Question 1: Step 5
+
+Average profit before using model:
+```{r}
+data.nptb.test %>%summarise(mean(total_os))*0.4
+
+```
+
+Average profit after using model:
+```{r}
+model_pr <- data.nptb.test %>%summarise(mean(epr.max))
+model_pr
+```
+
+## Question 1: Step 6
+
+```{r}
+profit_db <-  data.nptb.test %>%
+  summarise_at(vars(epr.backcountry, epr.team, epr.water, epr.strength, epr.endurance, epr.racquet, epr.control), funs(mean))
+
+
+profit_db
+```
+
+## Question 1: Step 7
+```{r}
+average_random_alloted_pr <- rowMeans(profit_db[1,1:6]) 
+average_random_alloted_pr
+```
+
+## Question 1: Step 8
+```{r}
+incremental_pr <- model_pr - average_random_alloted_pr
+total_pr <- incremental_pr*5000000
+Incremental_percent <- ((incremental_pr/average_random_alloted_pr)*100)
+total_pr
+```
+
+```{r}
+Incremental_percent
+```
+
+```{r}
+
+```
