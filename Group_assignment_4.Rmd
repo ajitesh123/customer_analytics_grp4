@@ -142,17 +142,18 @@ tabyl(mail.offer)
 
 ## Question 1: Step 3
 ```{r}
-avg_order_db <- data.nptb.train %>% filter(buyer==1)%>%
+avg_order_db <- pent %>% filter(buyer==1)%>%
   group_by(message)%>%
-  summarise(mean(total_os))
+  summarise(average_profit = mean(total_os)*0.4)
 avg_order_db
+
 ```
 
-
+## Question 1: Step 4
 
 ```{r}
 data.nptb.test <- data.nptb.test %>%
-mutate(epr.backcountry = pr.backcountry *64.03409*0.40, epr.control = pr.control*49.90060*0.40, epr.endurance = pr.endurance*55.58489*0.40, epr.racquet=pr.racquet*56.40562*0.40, epr.strength = pr.strength*56.70875*0.40, epr.team = pr.team*56.52245*0.40, epr.water = pr.water*61.95734*0.40)
+mutate(epr.backcountry = pr.backcountry *24.99912, epr.control = pr.control*19.97782, epr.endurance = pr.endurance*22.01888, epr.racquet=pr.racquet*23.13902, epr.strength = pr.strength*22.42917, epr.team = pr.team*23.03709, epr.water = pr.water*24.95753)
 head(data.nptb.test)
 ```
 
@@ -170,7 +171,6 @@ epr.control== epr.max ~ "control"))
 ```
 The epr.max column showcases the action that we would take for the customer. 
 
-## Question 1: Step 4
 ```{r}
 data.nptb.test %>%
 tabyl(mail.offer.ep)
@@ -218,7 +218,13 @@ total_pr
 ```{r}
 Incremental_percent
 ```
+## Question 2 
 
-```{r}
+Issue - In the NPTB model that we have discussed, we are overtly reliant on historic/experimental data to predict a starting point for the consumer that is the first two emails we send to the customer. and then we use customer's response to these emails to predict the future promotional email to send. We believe this biases the prediction.
 
-```
+Explanation - For example, let's assume first two emails to send to a customer are on water and raquet sports. The consuer did not respond well to a majority of the emails send by these departments. However, we did not build any data on this customer's response to other department's emails. Hence, the customer's response rate for other departments (say team) is 0. And thus, the NPTB model will again predict that we should send emails on water and racquet
+
+Suggested solution - 
+1. Either reseve few emails every month to develop test data on customer responses
+2. Define a cut-off for probability of response. If the predicted probability falls below this cut-off, we shoul
+
